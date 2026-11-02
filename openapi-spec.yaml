@@ -1,0 +1,408 @@
+openapi: 3.0.3
+info:
+  title: BookWorm E-Store API
+  description: REST API for the BookWorm e-commerce bookstore platform (IBM Capstone Project)
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8081
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [firstName, email, password]
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+        phoneNumber: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        email: { type: string }
+        firstName: { type: string }
+        userId: { type: integer }
+        role: { type: string }
+        giftPoints: { type: integer }
+
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string }
+
+    Product:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        author: { type: string }
+        description: { type: string }
+        price: { type: number }
+        format: { type: string, enum: [PAPERBACK, HARDCOVER, EBOOK, AUDIOBOOK] }
+        imageUrl: { type: string }
+        stock: { type: integer }
+        rating: { type: number }
+        reviewCount: { type: integer }
+        categoryId: { type: integer }
+        categoryName: { type: string }
+        deliveryDate: { type: string }
+        isFeatured: { type: boolean }
+        isNewLaunch: { type: boolean }
+        isBestseller: { type: boolean }
+        reviews:
+          type: array
+          items: { $ref: '#/components/schemas/Review' }
+
+    Review:
+      type: object
+      properties:
+        id: { type: integer }
+        reviewerName: { type: string }
+        content: { type: string }
+        rating: { type: integer }
+        createdAt: { type: string }
+
+    CartItem:
+      type: object
+      properties:
+        cartItemId: { type: integer }
+        productId: { type: integer }
+        title: { type: string }
+        author: { type: string }
+        imageUrl: { type: string }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        totalPrice: { type: number }
+        deliveryDate: { type: string }
+        categoryName: { type: string }
+
+    Cart:
+      type: object
+      properties:
+        cartId: { type: integer }
+        userId: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CartItem' }
+        total: { type: number }
+
+    CheckoutRequest:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        addressLine: { type: string }
+        city: { type: string }
+        state: { type: string }
+        country: { type: string }
+        pin: { type: string }
+        email: { type: string }
+        phoneNumber: { type: string }
+        couponCode: { type: string }
+        paymentMethod: { type: string, enum: [CREDIT_CARD, DEBIT_CARD, UPI, WALLET] }
+        cardNumber: { type: string }
+        nameOnCard: { type: string }
+        cvv: { type: string }
+        expiryDate: { type: string }
+        upiId: { type: string }
+
+    OrderResponse:
+      type: object
+      properties:
+        orderId: { type: integer }
+        status: { type: string }
+        subtotal: { type: number }
+        tax: { type: number }
+        discount: { type: number }
+        deliveryCharges: { type: number }
+        totalAmount: { type: number }
+        paymentStatus: { type: string }
+        transactionId: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId: { type: integer }
+              title: { type: string }
+              author: { type: string }
+              quantity: { type: integer }
+              unitPrice: { type: number }
+              totalPrice: { type: number }
+
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      security: []
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /api/auth/login:
+    post:
+      summary: Login with email and password
+      security: []
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /api/categories:
+    get:
+      summary: Get all product categories
+      security: []
+      tags: [Catalog]
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+
+  /api/products:
+    get:
+      summary: Get products (filter by category or keyword)
+      security: []
+      tags: [Catalog]
+      parameters:
+        - name: categoryId
+          in: query
+          schema: { type: integer }
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 12 }
+      responses:
+        '200':
+          description: Paginated product list
+
+  /api/products/featured:
+    get:
+      summary: Get featured/recommended products
+      security: []
+      tags: [Catalog]
+      responses:
+        '200':
+          description: Featured products
+
+  /api/products/bestsellers:
+    get:
+      summary: Get bestselling products
+      security: []
+      tags: [Catalog]
+      responses:
+        '200':
+          description: Bestseller products
+
+  /api/products/new-launches:
+    get:
+      summary: Get newly launched products
+      security: []
+      tags: [Catalog]
+      responses:
+        '200':
+          description: New launch products
+
+  /api/products/{id}:
+    get:
+      summary: Get product details by ID
+      security: []
+      tags: [Catalog]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Product detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+
+  /api/products/{id}/related:
+    get:
+      summary: Get related products
+      security: []
+      tags: [Catalog]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Related products
+
+  /api/products/{id}/reviews:
+    post:
+      summary: Add a review to a product
+      tags: [Catalog]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content: { type: string }
+                rating: { type: integer, minimum: 1, maximum: 5 }
+      responses:
+        '200':
+          description: Updated product with new review
+
+  /api/cart:
+    get:
+      summary: Get current user's cart
+      tags: [Cart]
+      responses:
+        '200':
+          description: Shopping cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+
+  /api/cart/items:
+    post:
+      summary: Add item to cart
+      tags: [Cart]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productId: { type: integer }
+                quantity: { type: integer }
+      responses:
+        '200':
+          description: Updated cart
+
+  /api/cart/items/{cartItemId}:
+    put:
+      summary: Update cart item quantity
+      tags: [Cart]
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity: { type: integer }
+      responses:
+        '200':
+          description: Updated cart
+
+    delete:
+      summary: Remove item from cart
+      tags: [Cart]
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Updated cart
+
+  /api/orders/checkout:
+    post:
+      summary: Checkout and place order
+      tags: [Orders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutRequest' }
+      responses:
+        '200':
+          description: Order placed successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderResponse' }
+
+  /api/orders/history:
+    get:
+      summary: Get order history for current user
+      tags: [Orders]
+      responses:
+        '200':
+          description: Order history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OrderResponse' }
+
+  /api/orders/{orderId}/cancel:
+    put:
+      summary: Cancel an order (within 48 hours)
+      tags: [Orders]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Cancelled order
